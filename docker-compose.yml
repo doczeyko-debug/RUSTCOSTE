@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    container_name: raidmaster_bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # To persist SQLite database
+      - ./prisma/dev.db:/usr/src/app/prisma/dev.db

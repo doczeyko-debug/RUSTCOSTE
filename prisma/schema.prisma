@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Explosive {
+  id             String @id @default(uuid())
+  name           String @unique // ej. "Rocket", "C4"
+  sulfur         Int
+  charcoal       Int
+  metalFragments Int
+  cloth          Int
+  techTrash      Int
+  damage         Int
+}
+
+model RaidTarget {
+  id             String @id @default(uuid())
+  name           String @unique // ej. "Stone Wall"
+  hp             Int
+  category       String // "Wall", "Door", "Deployable", etc.
+}
+
+model UserStats {
+  userId         String @id
+  queriesMade    Int    @default(0)
+  totalSulfur    Int    @default(0)
+}
