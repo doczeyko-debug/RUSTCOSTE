@@ -88,9 +88,18 @@ export function calculateRaidCost(target: RaidTarget, explosive: Explosive, quan
   } else {
     // Si no está mapeado explícitamente, usa la matemática tradicional (menos precisa pero sirve de fallback)
     let damage = explosive.damage;
-    if (explosive.name.toLowerCase().includes('rocket') || explosive.name.toLowerCase().includes('cohete')) damage = 137;
-    if (explosive.name.toLowerCase().includes('c4')) damage = 275;
-    if (explosive.name.toLowerCase().includes('satchel')) damage = 69;
+    const expName = explosive.name.toLowerCase();
+    
+    // Solo aplicamos 137 a cohetes básicos, no a los HV (que tienen su propio daño estructurado en la DB)
+    if ((expName.includes('rocket') || expName.includes('cohete')) && 
+        !expName.includes('hv') && 
+        !expName.includes('alta velocidad')) {
+      damage = 137;
+    } else if (expName.includes('c4')) {
+      damage = 275;
+    } else if (expName.includes('satchel')) {
+      damage = 69;
+    }
     
     amountPerTarget = Math.ceil(target.hp / damage);
   }
