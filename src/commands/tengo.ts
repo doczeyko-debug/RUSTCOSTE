@@ -41,7 +41,7 @@ const command: Command = {
         });
       });
       
-      const recommended = results.find(r => r.explosive.name === 'Rocket') || results[0];
+      const recommended = results.find(r => r.explosive.name === 'Cohete Básico' || r.explosive.name === 'Rocket') || results[0];
       embed.addFields(
         { name: '\u200B', value: '\u200B' },
         { name: 'Método recomendado:', value: recommended.explosive.name }

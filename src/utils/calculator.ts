@@ -11,17 +11,25 @@ export interface RaidCost {
 // Factor de mitigación de daño (aproximaciones para balancear el daño base vs daño real a estructuras)
 function getEffectiveDamage(explosive: Explosive, target: RaidTarget): number {
   let damage = explosive.damage;
+  const name = explosive.name.toLowerCase();
   
   // Ajustes de Rust: los explosivos tienen daños distintos en estructuras
-  if (explosive.name === 'Rocket') {
+  if (name === 'rocket' || name === 'cohete básico') {
     damage = 137.5; // Daño real a estructuras
-  } else if (explosive.name === 'C4') {
+  } else if (name === 'c4') {
     damage = 275; // Daño real a estructuras
-  } else if (explosive.name === 'Explosive Ammo') {
+  } else if (name === 'explosive ammo' || name === 'bala explosiva') {
     if (target.category === 'Sheet Metal') damage = 15;
     else if (target.category === 'Wood') damage = 20;
     else if (target.category === 'Stone') damage = 5;
     else damage = 10;
+  } else if (name === 'cóctel molotov') {
+    // El molotov solo hace daño a madera y TC
+    if (target.category === 'Wood' || target.name.includes('TC') || target.name.includes('Armario')) {
+      damage = 25;
+    } else {
+      damage = 0.001; // Daño insignificante
+    }
   }
   
   return damage;

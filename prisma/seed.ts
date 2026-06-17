@@ -19,7 +19,10 @@ async function main() {
     { name: 'Granada de Lata (Beancan)', sulfur: 120, charcoal: 180, metalFragments: 20, cloth: 0, techTrash: 0, damage: 15 },
     { name: 'Granada F1', sulfur: 60, charcoal: 90, metalFragments: 25, cloth: 0, techTrash: 0, damage: 10 },
     { name: 'Granada HE de 40mm', sulfur: 60, charcoal: 90, metalFragments: 25, cloth: 0, techTrash: 0, damage: 20 },
-    { name: 'Cohete Incendiario', sulfur: 700, charcoal: 900, metalFragments: 100, cloth: 0, techTrash: 0, damage: 200 }
+    { name: 'Cohete Incendiario', sulfur: 700, charcoal: 900, metalFragments: 100, cloth: 0, techTrash: 0, damage: 200 },
+    { name: 'Mortero', sulfur: 1000, charcoal: 1500, metalFragments: 50, cloth: 0, techTrash: 0, damage: 35 },
+    { name: 'Torpedo', sulfur: 4, charcoal: 6, metalFragments: 20, cloth: 0, techTrash: 0, damage: 75 },
+    { name: 'Cóctel Molotov', sulfur: 0, charcoal: 0, metalFragments: 0, cloth: 20, techTrash: 0, damage: 25 }
   ];
 
   for (const exp of explosives) {
