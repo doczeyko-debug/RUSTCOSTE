@@ -106,10 +106,19 @@ export function calculateRaidCost(target: RaidTarget, explosive: Explosive, quan
 
   const totalAmount = amountPerTarget * quantity;
   
+  // Si el explosivo no cuesta azufre (ej. Molotov), solo es "barato" (0 azufre) para madera/TC.
+  // Para piedra o metal, le asignamos costo de azufre Infinito para que no se recomiende.
+  const isWoodOrTC = target.category === 'Wood' || 
+                      target.name.toLowerCase().includes('armario') || 
+                      target.name.toLowerCase().includes('tc');
+  const totalSulfur = (explosive.sulfur === 0 && !isWoodOrTC) 
+                      ? Infinity 
+                      : explosive.sulfur * totalAmount;
+
   return {
     explosive,
     amount: totalAmount,
-    totalSulfur: explosive.sulfur * totalAmount,
+    totalSulfur,
     totalCharcoal: explosive.charcoal * totalAmount,
     totalMetal: explosive.metalFragments * totalAmount,
   };

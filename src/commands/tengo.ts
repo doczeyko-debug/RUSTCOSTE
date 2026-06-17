@@ -24,7 +24,7 @@ const command: Command = {
       .setTimestamp();
 
     const results = explosives.map(exp => {
-      const maxCraftable = Math.floor(sulfurAvailable / exp.sulfur);
+      const maxCraftable = exp.sulfur > 0 ? Math.floor(sulfurAvailable / exp.sulfur) : 0;
       return { explosive: exp, maxCraftable };
     }).filter(r => r.maxCraftable > 0);
 
