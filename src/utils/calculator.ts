@@ -8,38 +8,93 @@ export interface RaidCost {
   totalMetal: number;
 }
 
-// Factor de mitigación de daño (aproximaciones para balancear el daño base vs daño real a estructuras)
-function getEffectiveDamage(explosive: Explosive, target: RaidTarget): number {
-  let damage = explosive.damage;
-  const name = explosive.name.toLowerCase();
-  
-  // Ajustes de Rust: los explosivos tienen daños distintos en estructuras
-  if (name === 'rocket' || name === 'cohete básico') {
-    damage = 137.5; // Daño real a estructuras
-  } else if (name === 'c4') {
-    damage = 275; // Daño real a estructuras
-  } else if (name === 'explosive ammo' || name === 'bala explosiva') {
-    if (target.category === 'Sheet Metal') damage = 15;
-    else if (target.category === 'Wood') damage = 20;
-    else if (target.category === 'Stone') damage = 5;
-    else damage = 10;
-  } else if (name === 'cóctel molotov') {
-    // El molotov solo hace daño a madera y TC
-    if (target.category === 'Wood' || target.name.includes('TC') || target.name.includes('Armario')) {
-      damage = 25;
-    } else {
-      damage = 0.001; // Daño insignificante
-    }
+// Obtiene la cantidad exacta de explosivos necesarios usando datos directos de RustLabs
+function getExactAmount(explosive: Explosive, target: RaidTarget): number | null {
+  const exp = explosive.name.toLowerCase();
+  const tgt = target.name.toLowerCase();
+  const cat = target.category;
+
+  // Mapa de costos exactos: target -> explosive -> cantidad
+  const exactCosts: Record<string, Record<string, number>> = {
+    // PUERTAS
+    'puerta de madera': { 'cohete básico': 1, 'c4': 1, 'carga explosiva (satchel)': 2, 'bala explosiva': 19, 'granada de lata (beancan)': 6 },
+    'puerta doble de madera': { 'cohete básico': 1, 'c4': 1, 'carga explosiva (satchel)': 2, 'bala explosiva': 19, 'granada de lata (beancan)': 6 },
+    'puerta de chapa': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 4, 'bala explosiva': 63, 'granada de lata (beancan)': 18 },
+    'puerta doble de chapa': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 4, 'bala explosiva': 63, 'granada de lata (beancan)': 18 },
+    'escotilla': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 4, 'bala explosiva': 63, 'granada de lata (beancan)': 18 },
+    'puerta de garaje': { 'cohete básico': 3, 'c4': 2, 'carga explosiva (satchel)': 9, 'bala explosiva': 150, 'granada de lata (beancan)': 42 },
+    'puerta blindada': { 'cohete básico': 5, 'c4': 3, 'carga explosiva (satchel)': 15, 'bala explosiva': 250, 'granada de lata (beancan)': 72 },
+    'puerta doble blindada': { 'cohete básico': 5, 'c4': 3, 'carga explosiva (satchel)': 15, 'bala explosiva': 250, 'granada de lata (beancan)': 72 },
+    
+    // PAREDES, TECHOS Y CIMIENTOS
+    'madera (pared/techo/cimiento)': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 3, 'bala explosiva': 49, 'granada de lata (beancan)': 13 },
+    'pared de madera': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 3, 'bala explosiva': 49, 'granada de lata (beancan)': 13 },
+    'techo de madera': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 3, 'bala explosiva': 49, 'granada de lata (beancan)': 13 },
+    'cimiento de madera': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 3, 'bala explosiva': 49, 'granada de lata (beancan)': 13 },
+    
+    'piedra (pared/techo/cimiento)': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46 },
+    'pared de piedra': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46 },
+    'techo de piedra': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46 },
+    'cimiento de piedra': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46 },
+
+    'metal (pared/techo/cimiento)': { 'cohete básico': 8, 'c4': 4, 'carga explosiva (satchel)': 23, 'bala explosiva': 400, 'granada de lata (beancan)': 112 },
+    'pared de chapa': { 'cohete básico': 8, 'c4': 4, 'carga explosiva (satchel)': 23, 'bala explosiva': 400, 'granada de lata (beancan)': 112 },
+    'techo de chapa': { 'cohete básico': 8, 'c4': 4, 'carga explosiva (satchel)': 23, 'bala explosiva': 400, 'granada de lata (beancan)': 112 },
+    'cimiento de chapa': { 'cohete básico': 8, 'c4': 4, 'carga explosiva (satchel)': 23, 'bala explosiva': 400, 'granada de lata (beancan)': 112 },
+
+    'blindado (pared/techo/cimiento)': { 'cohete básico': 15, 'c4': 8, 'carga explosiva (satchel)': 46, 'bala explosiva': 799, 'granada de lata (beancan)': 223 },
+    'pared blindada': { 'cohete básico': 15, 'c4': 8, 'carga explosiva (satchel)': 46, 'bala explosiva': 799, 'granada de lata (beancan)': 223 },
+    'techo blindado': { 'cohete básico': 15, 'c4': 8, 'carga explosiva (satchel)': 46, 'bala explosiva': 799, 'granada de lata (beancan)': 223 },
+    'cimiento blindado': { 'cohete básico': 15, 'c4': 8, 'carga explosiva (satchel)': 46, 'bala explosiva': 799, 'granada de lata (beancan)': 223 },
+
+    // EXTERNOS
+    'muro externo de madera': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 6, 'bala explosiva': 98, 'granada de lata (beancan)': 28 },
+    'puerta externa de madera': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 6, 'bala explosiva': 98, 'granada de lata (beancan)': 28 },
+    'muro externo de piedra': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46 },
+    'puerta externa de piedra': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46 },
+
+    // VENTANAS
+    'barras de madera para ventana': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 3, 'bala explosiva': 49, 'granada de lata (beancan)': 13 },
+    'barras de metal para ventana': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 12, 'bala explosiva': 200, 'granada de lata (beancan)': 56 },
+    'cristal reforzado': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 12, 'bala explosiva': 200, 'granada de lata (beancan)': 56 },
+    'barras blindadas para ventana': { 'cohete básico': 8, 'c4': 4, 'carga explosiva (satchel)': 23, 'bala explosiva': 400, 'granada de lata (beancan)': 112 },
+
+    // OTROS
+    'armario (tc)': { 'cohete básico': 1, 'c4': 1, 'carga explosiva (satchel)': 2, 'bala explosiva': 9, 'granada de lata (beancan)': 3, 'cóctel molotov': 2 },
+    'torreta automática': { 'cohete básico': 4, 'c4': 1, 'carga explosiva (satchel)': 4, 'bala explosiva': 100, 'cohete de alta velocidad (hv)': 3 },
+    'máquina expendedora': { 'c4': 3, 'carga explosiva (satchel)': 10, 'cohete básico': 10 },
+    'banco de trabajo nivel 3': { 'cohete básico': 6, 'c4': 3, 'carga explosiva (satchel)': 15, 'bala explosiva': 250 }
+  };
+
+  if (exactCosts[tgt] && exactCosts[tgt][exp]) {
+    return exactCosts[tgt][exp];
   }
-  
-  return damage;
+
+  // Fallback fallback: Molotovs a madera (aprox)
+  if (exp === 'cóctel molotov') {
+    if (cat === 'Wood' || tgt.includes('madera')) return Math.ceil(target.hp / 25);
+    return null; // Molotov no hace daño real a otros materiales
+  }
+
+  return null;
 }
 
 export function calculateRaidCost(target: RaidTarget, explosive: Explosive, quantity: number = 1): RaidCost {
-  const effectiveDamage = getEffectiveDamage(explosive, target);
-  
-  // Cuántos explosivos se necesitan para 1 objetivo
-  const amountPerTarget = Math.ceil(target.hp / effectiveDamage);
+  const exactAmount = getExactAmount(explosive, target);
+  let amountPerTarget = 0;
+
+  if (exactAmount !== null) {
+    amountPerTarget = exactAmount;
+  } else {
+    // Si no está mapeado explícitamente, usa la matemática tradicional (menos precisa pero sirve de fallback)
+    let damage = explosive.damage;
+    if (explosive.name.toLowerCase().includes('rocket') || explosive.name.toLowerCase().includes('cohete')) damage = 137;
+    if (explosive.name.toLowerCase().includes('c4')) damage = 275;
+    if (explosive.name.toLowerCase().includes('satchel')) damage = 69;
+    
+    amountPerTarget = Math.ceil(target.hp / damage);
+  }
+
   const totalAmount = amountPerTarget * quantity;
   
   return {

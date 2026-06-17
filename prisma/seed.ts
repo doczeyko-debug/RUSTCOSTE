@@ -11,18 +11,18 @@ async function main() {
 
   // Insertar Explosivos en Español
   const explosives = [
-    { name: 'Cohete Básico', sulfur: 1400, charcoal: 1950, metalFragments: 100, cloth: 0, techTrash: 0, damage: 350 },
-    { name: 'C4', sulfur: 2200, charcoal: 3000, metalFragments: 200, cloth: 5, techTrash: 2, damage: 550 },
-    { name: 'Carga Explosiva (Satchel)', sulfur: 480, charcoal: 720, metalFragments: 80, cloth: 1, techTrash: 0, damage: 65 },
-    { name: 'Bala Explosiva', sulfur: 25, charcoal: 30, metalFragments: 10, cloth: 0, techTrash: 0, damage: 4 },
-    { name: 'Cohete de Alta Velocidad (HV)', sulfur: 200, charcoal: 300, metalFragments: 100, cloth: 0, techTrash: 0, damage: 150 },
-    { name: 'Granada de Lata (Beancan)', sulfur: 120, charcoal: 180, metalFragments: 20, cloth: 0, techTrash: 0, damage: 15 },
+    { name: 'Cohete Básico', sulfur: 1400, charcoal: 1950, metalFragments: 100, cloth: 0, techTrash: 0, damage: 137 },
+    { name: 'C4', sulfur: 2200, charcoal: 3000, metalFragments: 200, cloth: 5, techTrash: 2, damage: 275 },
+    { name: 'Carga Explosiva (Satchel)', sulfur: 480, charcoal: 720, metalFragments: 80, cloth: 11, techTrash: 0, damage: 68 },
+    { name: 'Bala Explosiva', sulfur: 25, charcoal: 30, metalFragments: 5, cloth: 0, techTrash: 0, damage: 3 },
+    { name: 'Cohete de Alta Velocidad (HV)', sulfur: 200, charcoal: 300, metalFragments: 100, cloth: 0, techTrash: 0, damage: 22 },
+    { name: 'Granada de Lata (Beancan)', sulfur: 120, charcoal: 180, metalFragments: 20, cloth: 0, techTrash: 0, damage: 14 },
     { name: 'Granada F1', sulfur: 60, charcoal: 90, metalFragments: 25, cloth: 0, techTrash: 0, damage: 10 },
-    { name: 'Granada HE de 40mm', sulfur: 60, charcoal: 90, metalFragments: 25, cloth: 0, techTrash: 0, damage: 20 },
-    { name: 'Cohete Incendiario', sulfur: 700, charcoal: 900, metalFragments: 100, cloth: 0, techTrash: 0, damage: 200 },
+    { name: 'Granada HE de 40mm', sulfur: 60, charcoal: 90, metalFragments: 25, cloth: 0, techTrash: 0, damage: 14 },
+    { name: 'Cohete Incendiario', sulfur: 1400, charcoal: 1950, metalFragments: 100, cloth: 0, techTrash: 0, damage: 150 },
     { name: 'Mortero', sulfur: 1000, charcoal: 1500, metalFragments: 50, cloth: 0, techTrash: 0, damage: 35 },
-    { name: 'Torpedo', sulfur: 4, charcoal: 6, metalFragments: 20, cloth: 0, techTrash: 0, damage: 75 },
-    { name: 'Cóctel Molotov', sulfur: 0, charcoal: 0, metalFragments: 0, cloth: 20, techTrash: 0, damage: 25 }
+    { name: 'Torpedo', sulfur: 20, charcoal: 30, metalFragments: 33, cloth: 0, techTrash: 0, damage: 75 },
+    { name: 'Cóctel Molotov', sulfur: 0, charcoal: 0, metalFragments: 0, cloth: 10, techTrash: 0, damage: 25 }
   ];
 
   for (const exp of explosives) {
