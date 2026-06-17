@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { prisma } from '../utils/database';
-import { calculateRaidCost } from '../utils/calculator';
+import { calculateRaidCost, normalizeTargetName } from '../utils/calculator';
 import { Command } from '../types/Command';
 
 const command: Command = {
@@ -9,7 +9,7 @@ const command: Command = {
     .setDescription('Calcula un camino completo de raideo')
     .addStringOption(option => 
       option.setName('objetivos')
-        .setDescription('Ejemplo: "2 Garage Door, 1 Stone Wall"')
+        .setDescription('Ejemplo: "2 Puerta de Garaje, 1 Pared de Piedra" o "2 Garage Door, 1 Stone Wall"')
         .setRequired(true)
     ),
 
@@ -23,10 +23,6 @@ const command: Command = {
     let totalCharcoal = 0;
     let totalMetal = 0;
     
-    // Let's assume the user wants the cheapest method overall for each. Or maybe a specific method.
-    // The prompt shows "Método más económico: Rocket + Explosive Ammo"
-    // So we calculate the cheapest method per item.
-    
     const targetsFound: { name: string, qty: number, cheapestExp: string, expQty: number }[] = [];
     const explosivesDb = await prisma.explosive.findMany();
 
@@ -38,11 +34,25 @@ const command: Command = {
       const qty = parseInt(match[1] || '1');
       const name = match[2].trim();
       
-      const target = await prisma.raidTarget.findFirst({ where: { name: { contains: name } } });
+      const targetNormalized = normalizeTargetName(name);
+      const target = await prisma.raidTarget.findFirst({
+        where: {
+          OR: [
+            { name: { equals: targetNormalized } },
+            { name: { contains: targetNormalized } },
+            { name: { contains: name } }
+          ]
+        }
+      });
       if (!target) continue;
 
-      // Find cheapest
-      const costs = explosivesDb.map(exp => calculateRaidCost(target, exp, qty));
+      // Find cheapest valid method
+      const costs = explosivesDb
+        .map(exp => calculateRaidCost(target, exp, qty))
+        .filter(c => c.totalSulfur !== Infinity);
+
+      if (costs.length === 0) continue;
+
       costs.sort((a, b) => a.totalSulfur - b.totalSulfur);
       const cheapest = costs[0];
 
@@ -59,7 +69,7 @@ const command: Command = {
     }
 
     if (targetsFound.length === 0) {
-      return interaction.reply({ content: 'No se reconocieron objetivos en tu lista.', ephemeral: true });
+      return interaction.reply({ content: 'No se reconocieron objetivos válidos en tu lista.', ephemeral: true });
     }
 
     let description = '**RAID TOTAL**\n\n';

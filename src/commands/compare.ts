@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { prisma } from '../utils/database';
-import { calculateRaidCost } from '../utils/calculator';
+import { calculateRaidCost, normalizeTargetName } from '../utils/calculator';
 import { Command } from '../types/Command';
 
 const command: Command = {
@@ -9,7 +9,7 @@ const command: Command = {
     .setDescription('Compara todos los métodos de raideo para un objetivo específico')
     .addStringOption(option => 
       option.setName('objetivo')
-        .setDescription('El objetivo a comparar (ej. Garage Door)')
+        .setDescription('El objetivo a comparar (ej. Puerta de Garaje)')
         .setRequired(true)
         .setAutocomplete(true)
     )
@@ -24,15 +24,31 @@ const command: Command = {
     const objetivoName = interaction.options.getString('objetivo', true);
     const cantidad = interaction.options.getInteger('cantidad', true);
     
-    const target = await prisma.raidTarget.findFirst({ where: { name: { contains: objetivoName } } });
+    const targetNormalized = normalizeTargetName(objetivoName);
+
+    const target = await prisma.raidTarget.findFirst({
+      where: {
+        OR: [
+          { name: { equals: targetNormalized } },
+          { name: { contains: targetNormalized } },
+          { name: { contains: objetivoName } }
+        ]
+      }
+    });
 
     if (!target) {
       return interaction.reply({ content: `No se encontró el objetivo: ${objetivoName}`, ephemeral: true });
     }
 
     const explosives = await prisma.explosive.findMany();
-    const costs = explosives.map(exp => calculateRaidCost(target, exp, cantidad));
+    const costs = explosives
+      .map(exp => calculateRaidCost(target, exp, cantidad))
+      .filter(cost => cost.totalSulfur !== Infinity); // Omitimos métodos no aplicables (daño 0)
     
+    if (costs.length === 0) {
+      return interaction.reply({ content: `No hay métodos de raideo aplicables para ${target.name}.`, ephemeral: true });
+    }
+
     // Sort by cheapest (least sulfur)
     costs.sort((a, b) => a.totalSulfur - b.totalSulfur);
 
@@ -41,6 +57,7 @@ const command: Command = {
     table += '-----------------|------|---------|---------|-------\n';
 
     for (const cost of costs) {
+      // Filtrar explosivos extremadamente caros y raros que no aporten valor
       if (cost.totalSulfur > 50000 && !['Cohete Básico', 'C4', 'Carga Explosiva (Satchel)', 'Bala Explosiva'].includes(cost.explosive.name)) continue;
 
       const namePad = cost.explosive.name.padEnd(16).substring(0, 16);

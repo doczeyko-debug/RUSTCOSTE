@@ -7,11 +7,18 @@ export default {
     if (interaction.isAutocomplete()) {
       const { name, value } = interaction.options.getFocused(true);
       const { prisma } = require('../utils/database');
+      const { normalizeTargetName, normalizeExplosiveName } = require('../utils/calculator');
 
       try {
         if (name === 'objetivo' || name === 'objetivo1' || name === 'objetivo2') {
+          const normalizedVal = normalizeTargetName(value);
           const targets = await prisma.raidTarget.findMany({
-            where: { name: { contains: value } },
+            where: {
+              OR: [
+                { name: { contains: normalizedVal } },
+                { name: { contains: value } }
+              ]
+            },
             orderBy: [
               { category: 'asc' },
               { name: 'asc' }
@@ -37,8 +44,14 @@ export default {
             }))
           );
         } else if (name === 'metodo' || name === 'metodo1' || name === 'metodo2' || name === 'explosivo') {
+          const normalizedVal = normalizeExplosiveName(value);
           const explosives = await prisma.explosive.findMany({
-            where: { name: { contains: value } },
+            where: {
+              OR: [
+                { name: { contains: normalizedVal } },
+                { name: { contains: value } }
+              ]
+            },
             orderBy: { name: 'asc' },
             take: 25
           });

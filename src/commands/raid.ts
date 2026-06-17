@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { prisma } from '../utils/database';
-import { calculateRaidCost } from '../utils/calculator';
+import { calculateRaidCost, normalizeTargetName, normalizeExplosiveName } from '../utils/calculator';
 import { Command } from '../types/Command';
 
 const command: Command = {
@@ -9,7 +9,7 @@ const command: Command = {
     .setDescription('Calcula el costo de raideo para un objetivo específico')
     .addStringOption(option => 
       option.setName('objetivo')
-        .setDescription('El objetivo a raidear (ej. Stone Wall)')
+        .setDescription('El objetivo a raidear (ej. Puerta de Garaje)')
         .setRequired(true)
         .setAutocomplete(true)
     )
@@ -21,7 +21,7 @@ const command: Command = {
     )
     .addStringOption(option => 
       option.setName('metodo')
-        .setDescription('El método de raideo a usar (ej. Rocket)')
+        .setDescription('El método de raideo a usar (ej. Cohete Básico)')
         .setRequired(true)
         .setAutocomplete(true)
     ),
@@ -31,8 +31,28 @@ const command: Command = {
     const metodoName = interaction.options.getString('metodo', true);
     const cantidad = interaction.options.getInteger('cantidad') || 1;
 
-    const target = await prisma.raidTarget.findFirst({ where: { name: { contains: objetivoName } } });
-    const explosive = await prisma.explosive.findFirst({ where: { name: { contains: metodoName } } });
+    const targetNormalized = normalizeTargetName(objetivoName);
+    const explosiveNormalized = normalizeExplosiveName(metodoName);
+
+    const target = await prisma.raidTarget.findFirst({
+      where: {
+        OR: [
+          { name: { equals: targetNormalized } },
+          { name: { contains: targetNormalized } },
+          { name: { contains: objetivoName } }
+        ]
+      }
+    });
+
+    const explosive = await prisma.explosive.findFirst({
+      where: {
+        OR: [
+          { name: { equals: explosiveNormalized } },
+          { name: { contains: explosiveNormalized } },
+          { name: { contains: metodoName } }
+        ]
+      }
+    });
 
     if (!target) {
       return interaction.reply({ content: `No se encontró el objetivo: ${objetivoName}`, ephemeral: true });
@@ -43,6 +63,11 @@ const command: Command = {
 
     const cost = calculateRaidCost(target, explosive, cantidad);
 
+    const amountValue = cost.amount === Infinity ? 'No aplicable' : cost.amount.toLocaleString();
+    const sulfurValue = cost.totalSulfur === Infinity ? 'No aplicable (0 daño)' : cost.totalSulfur.toLocaleString();
+    const charcoalValue = cost.totalCharcoal === Infinity ? 'No aplicable' : cost.totalCharcoal.toLocaleString();
+    const metalValue = cost.totalMetal === Infinity ? 'No aplicable' : cost.totalMetal.toLocaleString();
+
     const embed = new EmbedBuilder()
       .setColor('#D85A2B') // Naranja Rust
       .setTitle('🛡 RAID MASTER')
@@ -51,10 +76,10 @@ const command: Command = {
         { name: 'OBJETIVO:', value: `${target.name} x${cantidad}` },
         { name: 'MÉTODO:', value: `${explosive.name}` },
         { name: 'NECESITAS:', value: `
-🚀 **${explosive.name}s:** ${cost.amount}
-🪨 **Sulfur:** ${cost.totalSulfur.toLocaleString()}
-🔥 **Charcoal:** ${cost.totalCharcoal.toLocaleString()}
-⚙️ **Metal Fragments:** ${cost.totalMetal.toLocaleString()}
+🚀 **${explosive.name}s:** ${amountValue}
+🪨 **Sulfur:** ${sulfurValue}
+🔥 **Charcoal:** ${charcoalValue}
+⚙️ **Metal Fragments:** ${metalValue}
         ` }
       )
       .setFooter({ text: 'RaidMaster Bot', iconURL: interaction.client.user?.displayAvatarURL() })
