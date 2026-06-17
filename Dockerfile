@@ -13,4 +13,4 @@ RUN npx prisma generate
 RUN npm run build
 
 # Start the bot
-CMD ["npm", "run", "start"]
+CMD ["sh", "-c", "npx prisma db push --accept-placeholder-creator && npm run seed && npm run start"]
