@@ -1,4 +1,5 @@
 import { Explosive, RaidTarget } from '@prisma/client';
+import { prisma } from './database';
 
 export interface RaidCost {
   explosive: Explosive;
@@ -6,6 +7,33 @@ export interface RaidCost {
   totalSulfur: number;
   totalCharcoal: number;
   totalMetal: number;
+}
+
+// Caché en memoria para costos de raideo exactos de la base de datos
+let exactCosts: Record<string, Record<string, number>> = {};
+
+export async function loadCalculatorCache() {
+  const costs = await prisma.raidCost.findMany({
+    include: {
+      target: true,
+      explosive: true
+    }
+  });
+
+  const newCosts: Record<string, Record<string, number>> = {};
+  for (const c of costs) {
+    const tgt = c.target.name.toLowerCase();
+    const exp = c.explosive.name.toLowerCase();
+    if (!newCosts[tgt]) {
+      newCosts[tgt] = {};
+    }
+    newCosts[tgt][exp] = c.quantity;
+  }
+  exactCosts = newCosts;
+}
+
+export async function reloadCalculatorCache() {
+  await loadCalculatorCache();
 }
 
 // Diccionario de traducción bilingüe para objetivos de raideo
@@ -63,7 +91,8 @@ export function normalizeTargetName(name: string): string {
     'auto turret': 'torreta automática',
     'vending machine': 'máquina expendedora',
     'workbench 3': 'banco de trabajo nivel 3',
-    'workbench level 3': 'banco de trabajo nivel 3'
+    'workbench level 3': 'banco de trabajo nivel 3',
+    'metal shop front': 'frente de tienda metálico'
   };
 
   return targetMap[clean] || clean;
@@ -100,64 +129,12 @@ export function normalizeExplosiveName(name: string): string {
   return explosiveMap[clean] || clean;
 }
 
-// Obtiene la cantidad exacta de explosivos necesarios usando datos directos de RustLabs
+// Obtiene la cantidad exacta de explosivos necesarios usando la caché de base de datos
 function getExactAmount(explosive: Explosive, target: RaidTarget): number | null {
   const exp = explosive.name.toLowerCase();
   const tgt = target.name.toLowerCase();
 
-  // Mapa de costos exactos: target -> explosive -> cantidad
-  const exactCosts: Record<string, Record<string, number>> = {
-    // PUERTAS
-    'puerta de madera': { 'cohete básico': 1, 'c4': 1, 'carga explosiva (satchel)': 2, 'bala explosiva': 19, 'granada de lata (beancan)': 6, 'cohete de alta velocidad (hv)': 2, 'cóctel molotov': 2 },
-    'puerta doble de madera': { 'cohete básico': 1, 'c4': 1, 'carga explosiva (satchel)': 2, 'bala explosiva': 19, 'granada de lata (beancan)': 6, 'cohete de alta velocidad (hv)': 2, 'cóctel molotov': 2 },
-    'puerta de chapa': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 4, 'bala explosiva': 63, 'granada de lata (beancan)': 18, 'cohete de alta velocidad (hv)': 5 },
-    'puerta doble de chapa': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 4, 'bala explosiva': 63, 'granada de lata (beancan)': 18, 'cohete de alta velocidad (hv)': 5 },
-    'escotilla': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 4, 'bala explosiva': 63, 'granada de lata (beancan)': 18, 'cohete de alta velocidad (hv)': 5 },
-    'puerta de garaje': { 'cohete básico': 3, 'c4': 2, 'carga explosiva (satchel)': 9, 'bala explosiva': 150, 'granada de lata (beancan)': 42, 'cohete de alta velocidad (hv)': 12 },
-    'puerta blindada': { 'cohete básico': 5, 'c4': 3, 'carga explosiva (satchel)': 15, 'bala explosiva': 250, 'granada de lata (beancan)': 69, 'cohete de alta velocidad (hv)': 16 },
-    'puerta doble blindada': { 'cohete básico': 5, 'c4': 3, 'carga explosiva (satchel)': 15, 'bala explosiva': 250, 'granada de lata (beancan)': 69, 'cohete de alta velocidad (hv)': 16 },
-    
-    // PAREDES, TECHOS Y CIMIENTOS
-    'madera (pared/techo/cimiento)': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 3, 'bala explosiva': 49, 'granada de lata (beancan)': 13, 'cohete de alta velocidad (hv)': 8, 'cóctel molotov': 4 },
-    'pared de madera': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 3, 'bala explosiva': 49, 'granada de lata (beancan)': 13, 'cohete de alta velocidad (hv)': 8, 'cóctel molotov': 4 },
-    'techo de madera': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 3, 'bala explosiva': 49, 'granada de lata (beancan)': 13, 'cohete de alta velocidad (hv)': 8, 'cóctel molotov': 4 },
-    'cimiento de madera': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 3, 'bala explosiva': 49, 'granada de lata (beancan)': 13, 'cohete de alta velocidad (hv)': 8, 'cóctel molotov': 4 },
-    
-    'piedra (pared/techo/cimiento)': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46, 'cohete de alta velocidad (hv)': 33 },
-    'pared de piedra': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46, 'cohete de alta velocidad (hv)': 33 },
-    'techo de piedra': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46, 'cohete de alta velocidad (hv)': 33 },
-    'cimiento de piedra': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46, 'cohete de alta velocidad (hv)': 33 },
-
-    'metal (pared/techo/cimiento)': { 'cohete básico': 8, 'c4': 4, 'carga explosiva (satchel)': 23, 'bala explosiva': 400, 'granada de lata (beancan)': 112 },
-    'pared de chapa': { 'cohete básico': 8, 'c4': 4, 'carga explosiva (satchel)': 23, 'bala explosiva': 400, 'granada de lata (beancan)': 112 },
-    'techo de chapa': { 'cohete básico': 8, 'c4': 4, 'carga explosiva (satchel)': 23, 'bala explosiva': 400, 'granada de lata (beancan)': 112 },
-    'cimiento de chapa': { 'cohete básico': 8, 'c4': 4, 'carga explosiva (satchel)': 23, 'bala explosiva': 400, 'granada de lata (beancan)': 112 },
-
-    'blindado (pared/techo/cimiento)': { 'cohete básico': 15, 'c4': 8, 'carga explosiva (satchel)': 46, 'bala explosiva': 799, 'granada de lata (beancan)': 262 },
-    'pared blindada': { 'cohete básico': 15, 'c4': 8, 'carga explosiva (satchel)': 46, 'bala explosiva': 799, 'granada de lata (beancan)': 262 },
-    'techo blindado': { 'cohete básico': 15, 'c4': 8, 'carga explosiva (satchel)': 46, 'bala explosiva': 799, 'granada de lata (beancan)': 262 },
-    'cimiento blindado': { 'cohete básico': 15, 'c4': 8, 'carga explosiva (satchel)': 46, 'bala explosiva': 799, 'granada de lata (beancan)': 262 },
-
-    // EXTERNOS
-    'muro externo de madera': { 'cohete básico': 3, 'c4': 2, 'carga explosiva (satchel)': 6, 'bala explosiva': 98, 'granada de lata (beancan)': 26, 'cóctel molotov': 4 },
-    'puerta externa de madera': { 'cohete básico': 3, 'c4': 2, 'carga explosiva (satchel)': 6, 'bala explosiva': 98, 'granada de lata (beancan)': 26, 'cóctel molotov': 4 },
-    'muro externo de piedra': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46, 'cohete de alta velocidad (hv)': 33 },
-    'puerta externa de piedra': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 10, 'bala explosiva': 185, 'granada de lata (beancan)': 46, 'cohete de alta velocidad (hv)': 33 },
-
-    // VENTANAS
-    'barras de madera para ventana': { 'cohete básico': 2, 'c4': 1, 'carga explosiva (satchel)': 3, 'bala explosiva': 49, 'granada de lata (beancan)': 13, 'cóctel molotov': 4 },
-    'barras de metal para ventana': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 12, 'bala explosiva': 200, 'granada de lata (beancan)': 56 },
-    'cristal reforzado': { 'cohete básico': 4, 'c4': 2, 'carga explosiva (satchel)': 12, 'bala explosiva': 200, 'granada de lata (beancan)': 56 },
-    'barras blindadas para ventana': { 'cohete básico': 8, 'c4': 4, 'carga explosiva (satchel)': 23, 'bala explosiva': 400, 'granada de lata (beancan)': 112 },
-
-    // OTROS
-    'armario (tc)': { 'cohete básico': 1, 'c4': 1, 'carga explosiva (satchel)': 2, 'bala explosiva': 9, 'granada de lata (beancan)': 3, 'cóctel molotov': 2 },
-    'torreta automática': { 'cohete básico': 4, 'c4': 1, 'carga explosiva (satchel)': 4, 'bala explosiva': 100, 'cohete de alta velocidad (hv)': 3 },
-    'máquina expendedora': { 'cohete básico': 10, 'c4': 3, 'carga explosiva (satchel)': 10, 'bala explosiva': 150 },
-    'banco de trabajo nivel 3': { 'cohete básico': 6, 'c4': 3, 'carga explosiva (satchel)': 15, 'bala explosiva': 250 }
-  };
-
-  if (exactCosts[tgt] && exactCosts[tgt][exp]) {
+  if (exactCosts[tgt] && exactCosts[tgt][exp] !== undefined) {
     return exactCosts[tgt][exp];
   }
 

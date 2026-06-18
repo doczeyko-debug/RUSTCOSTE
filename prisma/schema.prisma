@@ -16,6 +16,7 @@ model Explosive {
   cloth          Int
   techTrash      Int
   damage         Int
+  raidCosts      RaidCost[]
 }
 
 model RaidTarget {
@@ -23,6 +24,7 @@ model RaidTarget {
   name           String @unique // ej. "Stone Wall"
   hp             Int
   category       String // "Wall", "Door", "Deployable", etc.
+  raidCosts      RaidCost[]
 }
 
 model UserStats {
@@ -30,3 +32,15 @@ model UserStats {
   queriesMade    Int    @default(0)
   totalSulfur    Int    @default(0)
 }
+
+model RaidCost {
+  id          String     @id @default(uuid())
+  targetId    String
+  target      RaidTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  explosiveId String
+  explosive   Explosive  @relation(fields: [explosiveId], references: [id], onDelete: Cascade)
+  quantity    Int
+
+  @@unique([targetId, explosiveId])
+}
+
